@@ -126,12 +126,24 @@ export class GithubProvider {
             "Github API rate limit, please add your own Authenticated Github token (see here: https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token)\n"
           );
         }
-        throw new Error("Error while fetching");
+        console.log(
+          `Error while fetching the endpoint: ${url}&page=${pageCounter}`
+        );
+
+        return { data: {} };
       });
 
-      users = res.data.map(
-        (user: GithubUserAPI) => "github:" + user.login + ":" + user.id
-      );
+      try {
+        users = res.data.map(
+          (user: GithubUserAPI) => "github:" + user.login + ":" + user.id
+        );
+      } catch {
+        console.log(
+          `No users where found for the repository at this url -> ${url}`
+        );
+        users = ["github:undefined"];
+      }
+
       for (const user of users) {
         const login = user.split(":")[1];
         if (login !== "undefined" && login !== "dependabot[bot]") {

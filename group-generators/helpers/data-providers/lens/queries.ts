@@ -21,38 +21,33 @@ const exploreProfiles = gql`
         totalCount
       }
     }
-  }`
+  }
+`;
 
 export const exploreProfilesQuery = async (
   graphqlProvider: GraphQLProvider,
   cursor: string
 ): Promise<ExploreProfileType> => {
-  return graphqlProvider.query<ExploreProfileType>(
-    exploreProfiles,
-    {
-      request: {
-        sortCriteria: "LATEST_CREATED",
-        limit: 50,
-        ...(cursor ? { cursor } : {}),
-      },
-    }
-  );
+  return graphqlProvider.query<ExploreProfileType>(exploreProfiles, {
+    request: {
+      sortCriteria: "LATEST_CREATED",
+      limit: 50,
+      ...(cursor ? { cursor } : {}),
+    },
+  });
 };
 
 export const exploreRankedProfilesQuery = async (
   graphqlProvider: GraphQLProvider,
   cursor: string
 ): Promise<ExploreProfileType> => {
-  return graphqlProvider.query<ExploreProfileType>(
-    exploreProfiles,
-    {
-      request: {
-        sortCriteria: "MOST_FOLLOWERS",
-        limit: 50,
-        ...(cursor ? { cursor } : {}),
-      },
-    }
-  );
+  return graphqlProvider.query<ExploreProfileType>(exploreProfiles, {
+    request: {
+      sortCriteria: "MOST_FOLLOWERS",
+      limit: 50,
+      ...(cursor ? { cursor } : {}),
+    },
+  });
 };
 
 export const getFollowersQuery = async (
@@ -154,11 +149,11 @@ export const getProfileWithHandleQuery = async (
   return graphqlProvider.query<ProfileType>(
     gql`
       query profile($request: SingleProfileQueryRequest!) {
-        profile(request: $request ) {
+        profile(request: $request) {
           handle
           ownedBy
-			  }
-		  }
+        }
+      }
     `,
     {
       request: {
@@ -166,4 +161,4 @@ export const getProfileWithHandleQuery = async (
       },
     }
   );
-}
+};

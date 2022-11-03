@@ -90,6 +90,59 @@ export default class SismoSubgraphProvider
     return fetchedData;
   }
 
+  public async queryBadgeHoldersWithValue(
+    tokenId: number,
+    value: number
+  ): Promise<FetchedData> {
+    const chunkSize = 1000;
+    const fetchedData: { [address: string]: number } = {};
+    let lastNumber = 0;
+    let currentChunkBadgeHolders: QueryBadgeHoldersOutput;
+
+    do {
+      currentChunkBadgeHolders = await this.query<QueryBadgeHoldersOutput>(
+        gql`
+          query GetBadgeHolders(
+            $tokenId: Int!
+            $value: Int!
+            $lastNumber: Int!
+            $badgesChunkSize: Int!
+          ) {
+            badges(
+              orderBy: number
+              where: {
+                tokenId: $tokenId
+                value: $value
+                number_gt: $lastNumber
+              }
+              first: $badgesChunkSize
+            ) {
+              number
+              owner {
+                id
+              }
+            }
+          }
+        `,
+        {
+          tokenId: tokenId,
+          value: value,
+          badgesChunkSize: chunkSize,
+          lastNumber: lastNumber,
+        }
+      );
+
+      for (const currentChunkBadge of currentChunkBadgeHolders.badges || []) {
+        fetchedData[currentChunkBadge.owner.id] = 1;
+        lastNumber = parseInt(currentChunkBadge.number);
+      }
+    } while (currentChunkBadgeHolders.badges?.length);
+
+    readline.cursorTo(process.stdout, 0);
+
+    return fetchedData;
+  }
+
   public async queryCollectionIds(): Promise<number[]> {
     const chunkSize = 1000;
     let currentChunkIndex = 0;

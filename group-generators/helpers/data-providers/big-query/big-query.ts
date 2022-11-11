@@ -63,6 +63,15 @@ type BigQueryMethodArgs = {
   };
 };
 
+type BigQueryMethodSeveralContractsArgs = {
+  contractAddresses: string[];
+  functionABI: string;
+  options?: {
+    functionArgs: boolean;
+    timestampPeriodUtc?: string[];
+  };
+};
+
 export enum SupportedNetwork {
   MAINNET = "mainnet",
   POLYGON = "polygon",
@@ -270,6 +279,68 @@ export default class BigQueryProvider {
   > {
     const iface = new Interface([functionABI]);
     const contractAddressLower = contractAddress.toLowerCase();
+
+    const functionSelector = utils
+      .id(
+        `${iface.fragments[0].name}(${iface.fragments[0].inputs
+          .map((x) => x.type)
+          .join(",")})`
+      )
+      .substring(0, 10);
+
+    // filter the transactions directly in the query using the functionSelector
+    const query = (startTimestamp: string, endTimestamp: string) => `
+    SELECT from_address, value, block_number, block_timestamp ${
+      options?.functionArgs ? `,input` : ""
+    } FROM \`${dataUrl[this.network]}.transactions\`
+    WHERE to_address="${contractAddressLower}"
+    AND input LIKE '%${functionSelector}%'
+    AND block_timestamp > TIMESTAMP("${startTimestamp}")
+    AND block_timestamp <= TIMESTAMP("${endTimestamp}")
+    AND receipt_status=1
+    `;
+    const cacheKey = hashJson({
+      queryType: "getAllTransactionsForSpecificMethod",
+      contractAddress,
+      functionSelector,
+      input: options?.functionArgs ?? false,
+      dataSet: dataUrl[this.network],
+    });
+    const response = await this.computeQueryWithCache(cacheKey, query, {
+      startTimestamp: options?.timestampPeriodUtc?.[0],
+      endTimestamp: options?.timestampPeriodUtc?.[1],
+    });
+    const transactions = response[0] as {
+      from_address: string;
+      value: bigint;
+      input?: string;
+    }[];
+
+    const res = transactions.map((transaction) => ({
+      from: transaction.from_address,
+      to: contractAddressLower,
+      value: BigNumber.from(transaction.value.toString()),
+      // decode the args
+      args: options?.functionArgs
+        ? (iface.parseTransaction({
+            data: transaction.input ? transaction.input : "",
+          }).args as any as T)
+        : undefined,
+    }));
+    return res;
+  }
+
+  public async getAllTransactionsForSpecificMethodOnSeveralContracts<T>({
+    contractAddresses,
+    functionABI,
+    options,
+  }: BigQueryMethodSeveralContractsArgs): Promise<
+    { from: string; to: string; value: BigNumber; args?: T }[]
+  > {
+    const iface = new Interface([functionABI]);
+    const contractAddressesLower = contractAddresses.map((contractAddress) =>
+      contractAddress.toLowerCase()
+    );
 
     const functionSelector = utils
       .id(
